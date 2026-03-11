@@ -1,45 +1,76 @@
-import mongoose, { Mongoose, Schema } from "mongoose";
+import mongoose,{Schema} from 'mongoose'
+import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 
-const productSchema = new Schema(
+const userSchema = new Schema(
     {
-      name : {
-        type : String,
-        require: true,
-      },
-      username : {
-        type : String,
-        require : true,
-        index : true,
-        unique : true
+        name : {
+            type : String,
+            required : true,
+        },
+        username : {
+            type : String,
+            required : true,
+            index : true,
+            unique : true
+        },
+        email : {
+            type : String,
+             required : true,
+            index : true,
+            unique : true
+        },
+        password : {
+            type : String,
+            required : true,
+            minlength : 8
+        },
+        profile : {
+            type : String , // cloudinary
+            
+        }
+       
 
-      },
-      email :{
-         type : String,
-         require : true,
-         index : true,
-         unique : true
-      },
-      password :{
-         type : String,
-         require : true,
-         min : 8
-      },
-      profile : {
-        type : String , //cloudinary
-      }
+} , 
+{timestamps : true})
 
-    },
-    {timestamps : true})
-     
-    userSchema.pre('save', async function (next) {
-      if (!this.isModified("password")) return next();
-      this.password = await bcrypt.hash(this.password, 10);
-      next() 
-    })
+userSchema.pre("save", async function () {
 
-    userSchema.methods.isPasswordCorrect= async function (password) {
-      return await bcrypt.compare(password, this.password)
-    }
-     
-    const User = Mongoose.models('User', userSchema)
+    if (!this.isModified("password")) return;
 
+    this.password = await bcrypt.hash(this.password, 10)
+
+})
+
+userSchema.methods.isPasswordCorrect = async function (password) {
+    return await bcrypt.compare(password, this.password)
+}
+
+userSchema.methods.generateAccessToken = function () {
+    return jwt.sign(
+        {
+            _id : this._id,
+            email : this.email,
+            username : this.username,
+            name : this.name
+        },
+        process.env.ACCESS_TOKEN_SECRET,
+        {
+            expiresIn : process.env.ACCESS_TOKEN_EXPIRY
+        }
+    )
+ }
+
+ userSchema.methods.generateRefreshToken = function () {
+    return jwt.sign(
+        {
+            _id : this._id
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            expiresIn : process.env.REFRESH_TOKEN_EXPIRY
+        }
+    )
+ }
+
+export  const User = mongoose.model('User', userSchema)
